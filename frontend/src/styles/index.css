@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { direction: rtl; }
+
+body {
+  background-color: #1a1f2e;
+  color: #e2e8f0;
+  font-family: 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
+  margin: 0;
+}
+
+/* RTL scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1a1f2e; }
+::-webkit-scrollbar-thumb { background: #3a4055; border-radius: 3px; }
+
+.card {
+  @apply bg-surface rounded-xl p-4 border border-white/5 shadow-lg;
+}
+
+.btn-buy {
+  @apply bg-accent text-primary font-bold py-2 px-6 rounded-lg hover:opacity-90 transition;
+}
+.btn-sell {
+  @apply bg-danger text-white font-bold py-2 px-6 rounded-lg hover:opacity-90 transition;
+}
+.btn-hold {
+  @apply bg-warning text-primary font-bold py-2 px-6 rounded-lg hover:opacity-90 transition;
+}
