@@ -16,7 +16,7 @@ export function useLivePrice(symbol) {
       wsRef.current.close()
     }
 
-    const ws = new WebSocket(`ws://localhost:8000/api/market/ws/${symbol}`)
+    const ws = new WebSocket(`wss://trading-sate.onrender.com/api/market/ws/${symbol}`)
     wsRef.current = ws
 
     ws.onopen = () => {
