@@ -1,10 +1,8 @@
 # backend/app/engine/sentiment.py
 """Sentiment Analysis Engine
-Uses FinBERT for financial NLP scoring of news headlines.
-Falls back to keyword-based scoring if model unavailable.
+Uses keyword-based scoring of news headlines.
 """
 import re
-from typing import Optional
 import finnhub
 from datetime import date, timedelta
 from ..config import get_settings
@@ -29,28 +27,6 @@ BEARISH_WORDS = {
 }
 
 class SentimentEngine:
-    def __init__(self):
-        self._finbert = None
-        self._finbert_loaded = False
-        self._load_finbert()
-
-    def _load_finbert(self):
-        """Try to load FinBERT — gracefully fall back if unavailable."""
-        try:
-            from transformers import pipeline
-            self._finbert = pipeline(
-                "text-classification",
-                model="ProsusAI/finbert",
-                tokenizer="ProsusAI/finbert",
-                max_length=512,
-                truncation=True,
-            )
-            self._finbert_loaded = True
-            print("✅ FinBERT loaded successfully")
-        except Exception as e:
-            print(f"⚠️  FinBERT not available, using keyword scoring: {e}")
-            self._finbert_loaded = False
-
     def score_text(self, text: str) -> dict:
         """
         Score a single text string.
@@ -58,20 +34,7 @@ class SentimentEngine:
         """
         if not text or len(text.strip()) < 5:
             return {"score": 0.0, "label": "neutral", "confidence": 0.5}
-        if self._finbert_loaded and self._finbert:
-            return self._finbert_score(text)
         return self._keyword_score(text)
-
-    def _finbert_score(self, text: str) -> dict:
-        try:
-            result   = self._finbert(text[:512])[0]
-            label    = result['label'].lower()   # 'positive','negative','neutral'
-            conf     = float(result['score'])
-            score_map = {'positive': 1.0, 'negative': -1.0, 'neutral': 0.0}
-            score     = score_map.get(label, 0.0) * conf
-            return {"score": round(score, 4), "label": label, "confidence": conf}
-        except:
-            return self._keyword_score(text)
 
     def _keyword_score(self, text: str) -> dict:
         text_lower = text.lower()
