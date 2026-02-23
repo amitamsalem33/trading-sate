@@ -44,7 +44,7 @@ async def get_signal(
                 "stop_loss":    cached.stop_loss,
                 "take_profit":  cached.take_profit,
                 "reasoning_he": cached.reasoning_he,
-                "sources":      json.loads(cached.reasoning_he or "{}").get("sources", []),
+                "sources":      [],
                 "cached":       True,
                 "generated_at": cached.generated_at.isoformat(),
             }
