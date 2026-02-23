@@ -54,7 +54,7 @@ async def get_signal(
     try:
         signal = await asyncio.wait_for(
             loop.run_in_executor(_executor, generate_signal, sym),
-            timeout=25.0
+            timeout=45.0
         )
     except asyncio.TimeoutError:
         return {

@@ -3,7 +3,6 @@
 Uses keyword-based scoring of news headlines.
 """
 import re
-import finnhub
 from datetime import date, timedelta
 from ..config import get_settings
 
@@ -103,20 +102,27 @@ class SentimentEngine:
     def get_symbol_sentiment(self, symbol: str, days: int = 7) -> dict:
         """
         Fetch Finnhub news for symbol and return aggregate sentiment.
+        Times out after 8 seconds to avoid blocking signal generation.
         """
+        _empty = {
+            "aggregate_score": 0.0, "label": "ניטרלי ➡️",
+            "bullish_count": 0, "bearish_count": 0, "neutral_count": 0,
+            "total_articles": 0, "scored_articles": [],
+        }
         try:
-            client   = finnhub.Client(api_key=settings.finnhub_api_key)
-            today    = date.today().strftime("%Y-%m-%d")
-            from_dt  = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
-            news     = client.company_news(symbol.upper(), _from=from_dt, to=today)
+            import requests
+            today   = date.today().strftime("%Y-%m-%d")
+            from_dt = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
+            resp = requests.get(
+                "https://finnhub.io/api/v1/company-news",
+                params={"symbol": symbol.upper(), "from": from_dt, "to": today,
+                        "token": settings.finnhub_api_key},
+                timeout=8,
+            )
+            news = resp.json() if resp.status_code == 200 else []
             return self.score_news_batch(news)
         except Exception as e:
-            return {
-                "aggregate_score": 0.0, "label": "ניטרלי ➡️",
-                "bullish_count": 0, "bearish_count": 0, "neutral_count": 0,
-                "total_articles": 0, "scored_articles": [],
-                "error": str(e),
-            }
+            return {**_empty, "error": str(e)}
 
 # Singleton
 sentiment_engine = SentimentEngine()
