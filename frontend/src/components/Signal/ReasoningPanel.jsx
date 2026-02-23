@@ -147,7 +147,7 @@ export default function ReasoningPanel({ symbol }) {
   const {
     decision, confidence, entry_price, stop_loss, take_profit,
     risk_reward, reasoning_he, sources = [], ml_result = {},
-    sentiment = {}, ta_signals = [], risk = {}, cached, error,
+    sentiment = {}, ta_signals = [], risk = {}, cached, error: signalError,
   } = data
 
   const probabilities = ml_result?.probabilities || {}
@@ -174,15 +174,15 @@ export default function ReasoningPanel({ symbol }) {
       </div>
 
       {/* ── Error Banner ── */}
-      {error && (
+      {signalError && (
         <div className="mb-4 bg-danger/10 border border-danger/30 rounded-lg px-4 py-3">
           <p className="text-danger text-xs font-bold mb-0.5">⚠️ שגיאה בחישוב האות</p>
-          <p className="text-danger/70 text-xs font-mono break-all">{error}</p>
+          <p className="text-danger/70 text-xs font-mono break-all">{signalError}</p>
         </div>
       )}
 
       {/* ── Decision Badge ── */}
-      {!error && (
+      {!signalError && (
       <div className="mb-4">
         <DecisionBadge decision={decision} confidence={confidence} />
       </div>
