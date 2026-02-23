@@ -49,26 +49,27 @@ async def get_signal(
     # Generate fresh signal
     signal = generate_signal(sym)
 
-    # Cache in DB
-    try:
-        existing = db.query(CachedSignal).filter_by(symbol=sym).first()
-        payload  = {
-            "decision":     signal.get("decision", "החזק"),
-            "confidence":   signal.get("confidence", 0.5),
-            "entry_price":  signal.get("entry_price"),
-            "stop_loss":    signal.get("stop_loss"),
-            "take_profit":  signal.get("take_profit"),
-            "reasoning_he": signal.get("reasoning_he", ""),
-            "generated_at": datetime.utcnow(),
-        }
-        if existing:
-            for k, v in payload.items():
-                setattr(existing, k, v)
-        else:
-            db.add(CachedSignal(symbol=sym, **payload))
-        db.commit()
-    except:
-        pass
+    # Cache in DB only on success (don't cache errors)
+    if not signal.get("error"):
+        try:
+            existing = db.query(CachedSignal).filter_by(symbol=sym).first()
+            payload  = {
+                "decision":     signal.get("decision", "החזק"),
+                "confidence":   signal.get("confidence", 0.5),
+                "entry_price":  signal.get("entry_price"),
+                "stop_loss":    signal.get("stop_loss"),
+                "take_profit":  signal.get("take_profit"),
+                "reasoning_he": signal.get("reasoning_he", ""),
+                "generated_at": datetime.utcnow(),
+            }
+            if existing:
+                for k, v in payload.items():
+                    setattr(existing, k, v)
+            else:
+                db.add(CachedSignal(symbol=sym, **payload))
+            db.commit()
+        except:
+            pass
 
     return signal
 
