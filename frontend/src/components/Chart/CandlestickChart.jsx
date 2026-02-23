@@ -10,8 +10,14 @@ const PERIODS = [
   { label: '1Y', period: '1y',  interval: '1d'  },
 ]
 
-// Binance symbol: ends with USDT / BTC / ETH / BNB / BUSD
-const isCrypto = (sym) => /^[A-Z0-9]+(USDT|BTC|ETH|BNB|BUSD)$/i.test(sym)
+// Crypto: ends with USDT/BTC/ETH/BNB/BUSD  OR  yfinance format like BTC-USD
+const isCrypto = (sym) =>
+  /^[A-Z0-9]+(USDT|BTC|ETH|BNB|BUSD)$/i.test(sym) ||
+  /^[A-Z0-9]+-USD$/i.test(sym)
+
+// Convert BTC-USD → BTCUSDT, ETHUSDT → ETHUSDT (passthrough)
+const toBinanceSym = (sym) =>
+  sym.toUpperCase().replace('-USD', 'USDT').replace('-', '')
 
 export default function CandlestickChart({ symbol, entryPrice, stopLoss, takeProfit }) {
   const chartContainerRef = useRef(null)
@@ -119,9 +125,10 @@ export default function CandlestickChart({ symbol, entryPrice, stopLoss, takePro
     stopRt()
 
     if (isCrypto(symbol)) {
-      // Binance WebSocket — interval already Binance-compatible (5m, 15m, 1h, 1d)
+      // Binance WebSocket — convert BTC-USD → btcusdt etc.
+      const binanceSym = toBinanceSym(symbol).toLowerCase()
       const ws = new WebSocket(
-        `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${selectedPeriod.interval}`
+        `wss://stream.binance.com:9443/ws/${binanceSym}@kline_${selectedPeriod.interval}`
       )
       wsRef.current = ws
 

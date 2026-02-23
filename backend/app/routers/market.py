@@ -38,16 +38,18 @@ async def get_quote(symbol: str):
     try:
         return yf_service.get_quote(symbol.upper())
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return partial data instead of crashing (e.g. rate limit from yfinance)
+        return {"symbol": symbol.upper(), "error": str(e)}
 
 # ── Fundamentals ──────────────────────────────────────────────────────────────
 
 @router.get("/fundamentals/{symbol}")
 async def get_fundamentals(symbol: str):
+    # Always return 200 — crypto symbols won't have most fields (that's OK)
     try:
         return yf_service.get_fundamentals(symbol.upper())
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        return {"symbol": symbol.upper()}
 
 # ── Batch Quotes (for watchlist) ──────────────────────────────────────────────
 

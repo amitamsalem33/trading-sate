@@ -25,19 +25,11 @@ export default function AssetView() {
   // Active tab for right column
   const [rightTab,      setRightTab]      = useState('order')  // 'order' | 'portfolio'
 
-  // Fetch quote to get current price for the OrderPanel
+  // Reset order when symbol changes (price comes from QuoteBar via onPriceUpdate)
   useEffect(() => {
     if (!symbol) return
     setLastOrder(null)
-    const fetchPrice = async () => {
-      try {
-        const q = await marketAPI.getQuote(symbol)
-        setCurrentPrice(q?.price ?? null)
-      } catch (_) {}
-    }
-    fetchPrice()
-    const interval = setInterval(fetchPrice, 15_000)
-    return () => clearInterval(interval)
+    setCurrentPrice(null)
   }, [symbol])
 
   const handleOrderPlaced = (order) => {

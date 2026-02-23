@@ -3,6 +3,19 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime, date, timedelta
 from typing import Optional
+import time
+
+# ── Simple in-memory TTL cache ────────────────────────────────────────────────
+_cache: dict = {}
+
+def _cache_get(key: str):
+    entry = _cache.get(key)
+    if entry and time.time() < entry['expires']:
+        return entry['value']
+    return None
+
+def _cache_set(key: str, value, ttl_seconds: int):
+    _cache[key] = {'value': value, 'expires': time.time() + ttl_seconds}
 
 class YFinanceService:
     """
@@ -20,6 +33,11 @@ class YFinanceService:
         Fetch OHLCV candlestick data.
         Returns a list of candles formatted for TradingView Lightweight Charts.
         """
+        cache_key = f"ohlcv:{symbol}:{period}:{interval}"
+        cached = _cache_get(cache_key)
+        if cached:
+            return cached
+
         ticker = yf.Ticker(symbol)
         df = ticker.history(period=period, interval=interval)
 
@@ -51,12 +69,19 @@ class YFinanceService:
                 "volume": int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
             })
 
-        return {"symbol": symbol, "data": candles}
+        result = {"symbol": symbol, "data": candles}
+        _cache_set(cache_key, result, ttl_seconds=60)
+        return result
 
     def get_quote(self, symbol: str) -> dict:
         """
         Fetch the latest real-time-like quote with key stats.
         """
+        cache_key = f"quote:{symbol}"
+        cached = _cache_get(cache_key)
+        if cached:
+            return cached
+
         ticker = yf.Ticker(symbol)
         info = ticker.info  # full info dict
         fast = ticker.fast_info
@@ -65,7 +90,7 @@ class YFinanceService:
         def safe(key, fallback=None):
             return info.get(key, fallback)
 
-        return {
+        result = {
             "symbol":           symbol.upper(),
             "name":             safe("longName") or safe("shortName") or symbol,
             "price":            safe("currentPrice") or safe("regularMarketPrice")
@@ -86,18 +111,29 @@ class YFinanceService:
             "sector":           safe("sector"),
             "industry":         safe("industry"),
         }
+        _cache_set(cache_key, result, ttl_seconds=30)
+        return result
 
     def get_fundamentals(self, symbol: str) -> dict:
         """
         Fetch key fundamental data for the Reasoning Panel.
+        Returns empty fields gracefully for crypto / unavailable symbols.
         """
-        ticker = yf.Ticker(symbol)
-        info   = ticker.info
+        cache_key = f"fundamentals:{symbol}"
+        cached = _cache_get(cache_key)
+        if cached:
+            return cached
+
+        try:
+            ticker = yf.Ticker(symbol)
+            info   = ticker.info
+        except Exception:
+            return {"symbol": symbol.upper()}
 
         def safe(key, fallback=None):
             return info.get(key, fallback)
 
-        return {
+        result = {
             "symbol":              symbol.upper(),
             "market_cap":          safe("marketCap"),
             "pe_ratio":            safe("trailingPE"),
@@ -115,8 +151,10 @@ class YFinanceService:
             "beta":                safe("beta"),
             "short_ratio":         safe("shortRatio"),
             "analyst_target":      safe("targetMeanPrice"),
-            "recommendation":      safe("recommendationKey"),  # e.g. "buy", "hold"
+            "recommendation":      safe("recommendationKey"),
         }
+        _cache_set(cache_key, result, ttl_seconds=300)  # 5 min for fundamentals
+        return result
 
     def get_multiple_quotes(self, symbols: list[str]) -> list[dict]:
         """
