@@ -45,11 +45,26 @@ def format_trade(trade, current_price):
         "closed_at":     trade.closed_at.isoformat() if trade.closed_at else None,
     }
 
+def _get_price(sym: str) -> float | None:
+    """Get latest price — try quote first, fall back to last OHLCV candle."""
+    try:
+        price = yf_service.get_quote(sym).get("price")
+        if price:
+            return float(price)
+    except Exception:
+        pass
+    try:
+        data = yf_service.get_ohlcv(sym, period="1d", interval="5m").get("data", [])
+        if data:
+            return float(sorted(data, key=lambda x: x["time"])[-1]["close"])
+    except Exception:
+        pass
+    return None
+
 @router.post("/order")
 async def place_order(order: OrderRequest, db: Session = Depends(get_db)):
     sym   = order.symbol.upper()
-    quote = yf_service.get_quote(sym)
-    price = quote.get("price")
+    price = _get_price(sym)
     if not price:
         raise HTTPException(status_code=400, detail=f"לא ניתן לקבל מחיר עבור {sym}")
 
@@ -99,10 +114,7 @@ async def get_portfolio(db: Session = Depends(get_db)):
     total_pnl = 0.0
     total_inv = 0.0
     for trade in open_trades:
-        try:
-            price = yf_service.get_quote(trade.symbol).get("price", trade.entry_price)
-        except:
-            price = trade.entry_price
+        price = _get_price(trade.symbol) or trade.entry_price
         fmt = format_trade(trade, price)
         total_pnl += fmt["pnl"]
         total_inv += trade.entry_price * trade.quantity
@@ -123,10 +135,7 @@ async def get_pending_orders(db: Session = Depends(get_db)):
     ).all()
     result = []
     for t in pending:
-        try:
-            current = yf_service.get_quote(t.symbol).get("price", 0)
-        except:
-            current = 0
+        current = _get_price(t.symbol) or 0
         diff_pct = round(((t.limit_price - current) / current) * 100, 2) if current else 0
         result.append({
             "id": t.id, "symbol": t.symbol,
@@ -153,10 +162,7 @@ async def close_trade(trade_id: int, db: Session = Depends(get_db)):
     trade = db.query(PaperTrade).filter_by(id=trade_id, is_open=True).first()
     if not trade:
         raise HTTPException(status_code=404, detail="עסקה פתוחה לא נמצאה")
-    try:
-        price = yf_service.get_quote(trade.symbol).get("price", trade.entry_price)
-    except:
-        price = trade.entry_price
+    price = _get_price(trade.symbol) or trade.entry_price
     pnl = calculate_pnl(trade, price)
     trade.exit_price = price
     trade.pnl        = pnl
@@ -179,7 +185,7 @@ async def check_and_trigger_limits(db: Session = Depends(get_db)):
     triggered = []
     for trade in pending:
         try:
-            current = yf_service.get_quote(trade.symbol).get("price", 0)
+            current = _get_price(trade.symbol) or 0
             if not current:
                 continue
             should = (
