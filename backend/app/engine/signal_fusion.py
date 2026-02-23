@@ -172,7 +172,7 @@ def _generate_hebrew_reasoning(
 
     # ── Sentiment Block ──
     reasons.append(
-        f"\n📰 **ניתוח סנטימנט חדשות (Finnhub + {'FinBERT' if sentiment_engine._finbert_loaded else 'מילות מפתח'}):**\n"
+        f"\n📰 **ניתוח סנטימנט חדשות (Finnhub + מילות מפתח):**\n"
         f"סנטימנט כולל: **{sent_lbl}** | "
         f"חיוביות: {bull_cnt} כתבות | שליליות: {bear_cnt} כתבות\n"
         f"סקרנו {sentiment.get('total_articles', 0)} כתבות מ-7 הימים האחרונים"
