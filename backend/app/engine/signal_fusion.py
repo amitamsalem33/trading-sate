@@ -235,15 +235,8 @@ def generate_signal(symbol: str) -> dict:
         atr_14       = features.get('atr_14', price * 0.02)
         volatility   = features.get('volatility_20', 0.25)
 
-        # ── Step 2: ML Ensemble ───────────────────────────────────
-        try:
-            # Try training first if not trained
-            if not ml_ensemble.trained:
-                df_train = feature_engineer.get_feature_matrix(symbol, period="2y")
-                ml_ensemble.train(df_train)
-            ml_result = ml_ensemble.predict(features)
-        except Exception as e:
-            ml_result = ml_ensemble._rule_based_fallback(features)
+        # ── Step 2: ML Ensemble (rule-based fallback, no heavy training) ────
+        ml_result = ml_ensemble.predict(features)
 
         # ── Step 3: TA Score ──────────────────────────────────────
         ta_score_val, ta_signals = _ta_score(features)

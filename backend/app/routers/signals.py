@@ -5,9 +5,12 @@ from ..database import get_db, CachedSignal
 from sqlalchemy.orm import Session
 from fastapi import Depends
 import json
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 router = APIRouter()
+_executor = ThreadPoolExecutor(max_workers=3)
 
 def _get_cached(symbol: str, db: Session) -> CachedSignal | None:
     """Return cached signal if less than 15 minutes old."""
@@ -46,8 +49,23 @@ async def get_signal(
                 "generated_at": cached.generated_at.isoformat(),
             }
 
-    # Generate fresh signal
-    signal = generate_signal(sym)
+    # Generate fresh signal in thread pool (blocking I/O — don't block event loop)
+    loop = asyncio.get_event_loop()
+    try:
+        signal = await asyncio.wait_for(
+            loop.run_in_executor(_executor, generate_signal, sym),
+            timeout=25.0
+        )
+    except asyncio.TimeoutError:
+        return {
+            "symbol":       sym,
+            "decision":     "החזק",
+            "emoji":        "⏸️",
+            "color":        "yellow",
+            "confidence":   0.5,
+            "error":        "חישוב האות ארך יותר מדי זמן. נסה שוב.",
+            "reasoning_he": "חישוב האות ארך יותר מדי זמן. נסה שוב.",
+        }
 
     # Cache in DB only on success (don't cache errors)
     if not signal.get("error"):
